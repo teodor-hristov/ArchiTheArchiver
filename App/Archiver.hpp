@@ -1,24 +1,35 @@
+#include <vector>
+#include <string>
+#include <fstream>
 
-typedef struct FileHeader_Tag
-{
-	double compression_level;
-	size_t data_size;
-	string file_name;
+using namespace std;
 
-	FileHeader(string fileName, size_t dataSize, double compressionLevel) :
-		file_name(fileName), dataSize(data_size), compression_level(compression_level){}
-} FileHeader;
+//[(archive info)-(file header)(file data) ... (file header)(file data)]
+struct FileHeader
+	{
+		double compression_level;
+		size_t data_size;
+		string file_name;
+		uint32_t file_hash;
+	};
+struct FileEntry
+	{
+		FileHeader header;
+		vector<int> data;
+
+		FileEntry(string fileName);
+};
 
 class Archiver {
-
-
 private:
-	//[(archive info)-(file header)(file data) ... (file header)(file data)]
-
+	vector<FileEntry> archive;
 public:
-	virtual void saveToLocation(string& locationPath)
-	virtual void addFile(string& filePath) = delete;
-	virtual void addDir(string& dirPath) = delete;
+	Archiver();
+	virtual void saveToLocation(string& locationPath) = delete;
+	virtual void addFile(string& filePath);
+	virtual void addDir(string& dirPath);
+	virtual void removeFile(string& filePath) = delete;
+	virtual void editFile(string& filePath) = delete;
 	virtual double compressionLevel() const = delete;
 	virtual string info() const = delete;
 };

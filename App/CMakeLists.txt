@@ -6,7 +6,7 @@ cmake_minimum_required (VERSION 3.8)
 project ("App")
 
 # Add source to this project's executable.
-add_executable (App "App.cpp" "App.h" "Archiver.hpp" "Compressor.hpp" "Compressor.cpp")
+add_executable (App "App.cpp" "App.h" "Archiver.hpp" "Compressor.hpp" "Compressor.cpp" "Archiver.cpp")
 
 if (CMAKE_VERSION VERSION_GREATER 3.12)
   set_property(TARGET App PROPERTY CXX_STANDARD 20)
