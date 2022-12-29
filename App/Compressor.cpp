@@ -1,9 +1,13 @@
 #include "Compressor.hpp"
 
-vector<int> Compressor::compress(string data)
+#include <fstream>
+#include <iostream>
+
+void Compressor::compress(istream& in, ostream& out)
 {
-	vector<int> compressed(0);
 	unordered_map<string, int> table;
+	char data[4096] = {0};
+	std::streamsize dataSize;
 
 	//init
 	for (int i = 0; i < 256; i++)
@@ -14,34 +18,43 @@ vector<int> Compressor::compress(string data)
 
 	string current_char = string(1, data[currInd]), next_char = string(1, data[nextInd]);
 	int tmp = 0, toMove = 0;
-	while (nextInd < data.length())
+
+	while (in.get(data, sizeof(data)))
 	{
-		if (table[current_char] > 0)
+		dataSize = in.gcount();
+		while (nextInd < dataSize)
 		{
-			toMove++;
-			tmp = table[current_char];
-			current_char = current_char + next_char;
-			next_char = data[++nextInd];
+			if (table[current_char] > 0)
+			{
+				toMove++;
+				tmp = table[current_char];
+				current_char = current_char + next_char;
+				next_char = data[++nextInd];
+			}
+			else
+			{
+				out << tmp;
+				table[current_char] = ++lastInd;
+				currInd += toMove;
+				current_char = data[currInd];
+				toMove = 0;
+			}
 		}
+
+		if (table[current_char] > 0)
+			out.write(reinterpret_cast<const char*>(&table[current_char]), sizeof(table[current_char]));
 		else
 		{
-			compressed.push_back(tmp);
-			table[current_char] = ++lastInd;
-			currInd += toMove;
-			current_char = data[currInd];
-			toMove = 0;
+			out.write(reinterpret_cast<const char*>(&tmp), sizeof(tmp));
+			out << current_char.back();
+			out.write(&current_char.back(), sizeof(current_char.back()));
+
 		}
-	}
 
-	if (table[current_char] > 0)
-		compressed.push_back(table[current_char]);
-	else
-	{
-		compressed.push_back(tmp);
-		compressed.push_back(current_char.back());
+		currInd = 0, nextInd = 1;
+		tmp = 0, toMove = 0;
 	}
-
-	return compressed;
+	out.flush();
 }
 
 string Compressor::decompress(vector<int>& data)
