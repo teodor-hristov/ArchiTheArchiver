@@ -8,12 +8,29 @@
 
 FileEntry::FileEntry(string fileName)
 {
-	header = FileHeader{ 0,0, fileName, 0 };
+	header = FileHeader{ 0,0, fileName};
+}
+
+void Archiver::prepareForSave()
+{
+
 }
 
 Archiver::Archiver()
 {
-	archive = vector<FileEntry>();
+	archive = vector<FileEntry*>();
+}
+
+void Archiver::saveToLocation(string& locationPath)
+{
+	const string saveTo = locationPath + "compressedFile.archi";
+	const fstream file(saveTo, ios_base::out | ios_base::binary | ios_base::trunc);
+
+	if (!file.is_open())
+		throw std::exception("Cannot open file.");
+
+
+
 }
 
 void Archiver::addFile(string& filePath)
@@ -22,7 +39,7 @@ void Archiver::addFile(string& filePath)
 	if (!file.is_open())
 		throw std::exception("Cannot open file.");
 
-	archive.emplace_back(FileEntry(filePath));
+	archive.emplace_back(new FileEntry(filePath));
 }
 
 void Archiver::addDir(string& dirPath)
