@@ -1,15 +1,9 @@
 #pragma once
 
-#include <string>
-#include <unordered_map>
-#include <vector>
 #include "Utils.hpp"
 
-using namespace std;
-
-class Compressor
+namespace Compressor
 {
-public:
-	virtual void compress(istream& in, ostream& out, FileEntry* fe);
-	void decompress(istream& in, ostream& out, FileEntry* fe);
-};
+	void compress(std::istream& in, std::ostream& out, FileEntry* fe);
+	void decompress(std::istream& in, std::ostream& out, FileEntry* fe);
+}

@@ -1,7 +1,11 @@
 #include "Compressor.hpp"
 
-#include <fstream>
+#include <algorithm>
+#include <unordered_map>
+#include <string>
 #include <iostream>
+
+using std::istream, std::ostream, std::unordered_map, std::string, std::ios_base;
 
 void Compressor::compress(istream& in, ostream& out, FileEntry* fe)
 {
@@ -12,63 +16,53 @@ void Compressor::compress(istream& in, ostream& out, FileEntry* fe)
 		throw std::exception("Stream failure.");
 
 	unordered_map<string, uint16_t> table;
-	char data[4096] = { 0 };
-	std::streamsize dataSize;
 
-	//init
-	for (int i = 0; i < 256; i++)
+	string currentString;
+	string nextString = "";
+
+	const int maxDictSize = 4096;
+	int dictSize = 256;
+	char unit = 0;
+
+	for (int i = 0; i < dictSize; i++)
 		table[string(1, i)] = i;
 
-	size_t lastInd = 255;
-	size_t currInd = 0, nextInd = 1;
+	in.read(&unit, sizeof(unit));
+	currentString = unit;
 
-	string current_char;
-	string next_char;
-	uint16_t last_found = 0, toMove = 0;
-
-	while (in.get(data, sizeof(data)))
+	while (in.read(&unit, sizeof(unit)).gcount() > 0)
 	{
-		current_char = data[currInd];
-		next_char = data[nextInd];
-		dataSize = in.gcount();
-		fe->data_size_raw += dataSize;
+		nextString = unit;
 
-		while (nextInd < dataSize)
+		if (table[currentString + nextString] > 0)
 		{
-			if (table[current_char] > 0)
-			{
-				toMove++;
-				last_found = table[current_char];
-				current_char = current_char + next_char;
-				next_char = data[++nextInd];
-			}
-			else
-			{
-				out.write(reinterpret_cast<const char*>(&last_found), sizeof(last_found));
-				fe->data_size_compressed += sizeof(last_found);
-				table[current_char] = ++lastInd;
-				currInd += toMove;
-				current_char = data[currInd];
-				toMove = 0;
-			}
-		}
-
-		if (table[current_char] > 0)
-		{
-			out.write(reinterpret_cast<const char*>(&table[current_char]), sizeof(table[current_char]));
-			fe->data_size_compressed += 1 * sizeof(table[current_char]);
+			currentString += nextString;
 		}
 		else
 		{
-			out.write(reinterpret_cast<const char*>(&last_found), sizeof(last_found));
-			out.write(&current_char.back(), sizeof(current_char.back()));
-			fe->data_size_compressed += sizeof(last_found) + sizeof(current_char.back());
+			//cout << table[currentString] << ", ";
+			out.write(reinterpret_cast<const char*>(&table[currentString]), sizeof(table[currentString]));
+			fe->data_size_compressed += sizeof(table[currentString]);
+			fe->data_size_raw += currentString.length();
+
+			if (maxDictSize > dictSize)
+			{
+				table[currentString + nextString] = dictSize;
+				dictSize++;
+			}
+
+			currentString = nextString;
 		}
 
-		//currInd = 0, nextInd = 1;
-		//tmp = 0, toMove = 0;
 	}
+
+	//cout << table[currentString] << endl;
+	out.write(reinterpret_cast<const char*>(&table[currentString]), sizeof(table[currentString]));
+	fe->data_size_compressed += sizeof(table[currentString]);
+	fe->data_size_raw += currentString.length();
+
 	out.flush();
+
 }
 
 void Compressor::decompress(istream& in, ostream& out, FileEntry* fe)
@@ -94,15 +88,15 @@ void Compressor::decompress(istream& in, ostream& out, FileEntry* fe)
 	string str, curr;
 
 	//Decrypt
-	streamsize red = in.read(reinterpret_cast<char*>(data), sizeof(data)).gcount();
-	while (red <= end_offs && red > 0)
+	int red = in.read(reinterpret_cast<char*>(data), sizeof(data)).gcount();
+	while (in.gcount() > 0)
 	{
 		tmp = data[0];
 		str = dict[tmp];
 		curr = string(1, str[0]);
 		out.write(str.c_str(), str.length());
 
-		for (int i = 0; i < red - 1; i++)
+		for (int i = 0; i < std::ranges::min(end_offs, red) - 1; i++)
 		{
 			next = data[i + 1];
 			if (dict.find(next) == dict.end())
@@ -124,6 +118,8 @@ void Compressor::decompress(istream& in, ostream& out, FileEntry* fe)
 			tmp = next;
 		}
 
-		red = in.read(reinterpret_cast<char*>(data), sizeof(data)).gcount();
+		red += in.read(reinterpret_cast<char*>(data), sizeof(data)).gcount();
 	}
+	in.clear();
+	in.seekg(end_offs, ios_base::beg);
 }
