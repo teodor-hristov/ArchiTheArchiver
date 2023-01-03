@@ -15,12 +15,12 @@ void Compressor::compress(istream& in, ostream& out, FileEntry* fe)
 	if (!in.good() || !out.good())
 		throw std::exception("Stream failure.");
 
-	unordered_map<string, uint16_t> table;
+	const int maxDictSize = 4096;
+	unordered_map<string, uint16_t> table(maxDictSize);
 
 	string currentString;
 	string nextString = "";
 
-	const int maxDictSize = 4096;
 	int dictSize = 256;
 	char unit = 0;
 
@@ -80,7 +80,7 @@ void Compressor::decompress(istream& in, ostream& out, FileEntry* fe)
 		dict[i] = static_cast<char>(i);
 
 	uint16_t data[2048] = { 0 };
-	int next, tmp;
+	int next, tmp = 0;
 	int lastInd = 256;
 
 	int end_offs = static_cast<int>(in.tellg()) + fe->data_size_compressed;
@@ -91,12 +91,11 @@ void Compressor::decompress(istream& in, ostream& out, FileEntry* fe)
 	int red = in.read(reinterpret_cast<char*>(data), sizeof(data)).gcount();
 	while (in.gcount() > 0)
 	{
-		tmp = data[0];
-		str = dict[tmp];
+		str = dict[data[tmp]];
 		curr = string(1, str[0]);
 		out.write(str.c_str(), str.length());
 
-		for (int i = 0; i < std::ranges::min(end_offs, red) - 1; i++)
+		for (int i = 0; i < std::ranges::min(static_cast<int>(fe->data_size_compressed), red)/2 - 1; i++)
 		{
 			next = data[i + 1];
 			if (dict.find(next) == dict.end())
@@ -117,9 +116,9 @@ void Compressor::decompress(istream& in, ostream& out, FileEntry* fe)
 			lastInd++;
 			tmp = next;
 		}
-
 		red += in.read(reinterpret_cast<char*>(data), sizeof(data)).gcount();
 	}
+
 	in.clear();
 	in.seekg(end_offs, ios_base::beg);
 }
