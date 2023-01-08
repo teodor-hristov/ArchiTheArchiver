@@ -1,9 +1,9 @@
 #include "Parser.hpp"
 
-bool parser::zip(std::vector<std::string>& files)
-{
-	return false;
-}
+//bool parser::zip(std::vector<std::string>& files)
+//{
+//	return false;
+//}
 
 bool parser::unzip(std::string& filePath)
 {
