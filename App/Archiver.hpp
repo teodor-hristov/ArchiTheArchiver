@@ -1,3 +1,5 @@
+#pragma once
+
 #include "Utils.hpp"
 #include <fstream>
 
@@ -5,18 +7,15 @@ using namespace std;
 
 class Archiver {
 private:
-	vector<FileEntry*> archive;
+	void saveToLocation(string& locationPath) const;
+	void addFile(string& filePath);
+	void addDir(string& dirPath);
 
-	void prepareForSave();
 public:
+	vector<FileEntry*> archive;
 	Archiver();
-	virtual void saveToLocation(string& locationPath);
-	virtual void addFile(string& filePath);
-	virtual void addDir(string& dirPath);
+	virtual void zip(string saveLocation, vector<string>& files);
 
-	virtual void removeFile(string& filePath) = delete;
-	virtual void editFile(string& filePath) = delete;
-
-	virtual double compressionLevel() const = delete;
-	virtual string info() const = delete;
+	virtual void editFile(string compressedFile, string& newVersion);
+	virtual string info(string& compressedFileLocation) const;
 };
