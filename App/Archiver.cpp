@@ -6,6 +6,43 @@
 
 #include "Compressor.hpp"
 
+void shiftFileContent(const std::string& file_name, std::streampos pointer, std::streampos shift) {
+	std::ifstream input_file(file_name, std::ios::binary);
+	std::ofstream output_file(file_name + ".tmp", std::ios::binary);
+	char buffer[1024];
+	streampos red = pointer;
+
+	// Read and write the bytes before the pointer
+	while (input_file.read(buffer, sizeof(buffer)).gcount() > 0)
+	{
+		red -= input_file.gcount();
+		if (red <= 0)
+		{
+			output_file.write(buffer, 
+				pointer + red < 0 ?
+					pointer :
+					pointer + red);
+			break;
+		}
+
+		output_file.write(buffer, pointer);
+	}
+
+	// Shift the rest of the file by the given number of bytes
+	input_file.seekg(pointer + shift);
+	while (input_file.read(buffer, sizeof(buffer)).gcount() > 0)
+	{
+		output_file.write(buffer, input_file.gcount());
+	}
+
+	input_file.close();
+	output_file.close();
+
+	// Replace the original file with the modified version
+	std::filesystem::remove(file_name.c_str());
+	std::filesystem::rename((file_name + ".tmp").c_str(), file_name.c_str());
+}
+
 FileEntry::FileEntry(const string fileName) : data_size_compressed(0), data_size_raw(0)
 {
 	memset(file_name, 0, sizeof(file_name));
@@ -36,9 +73,71 @@ void Archiver::zip(string saveLocation, vector<string>& files) {
 	saveToLocation(saveLocation);
 }
 
-void editFile(string compressedFile, string& newVersion)
+void Archiver::editFile(string compressedFilePath, string newFilePath)
 {
-	//todo
+	FileEntry newFileEntry(newFilePath);
+	fstream newFile(newFilePath, ios_base::in | ios_base::binary);
+	fstream tmpCompressed(newFilePath + ".tmp", ios_base::binary
+		| ios_base::out | ios_base::trunc);
+
+	if (!newFile.is_open() || !tmpCompressed.is_open())
+	{
+		newFile.close();
+		tmpCompressed.close();
+		throw std::bad_exception();
+	}
+
+	Compressor::compress(newFile, tmpCompressed, &newFileEntry);
+
+	size_t newFileSize = tmpCompressed.tellg();
+	tmpCompressed.close();
+
+	FileEntry archiveEntry("");
+	fstream archive(compressedFilePath, ios_base::binary | ios_base::in);
+	string newFileName = filesystem::path(newFilePath).filename().string();
+
+	if (!archive.is_open())
+		throw std::bad_exception();
+
+	//find file in archive
+	while (archive.read(reinterpret_cast<char*>(&archiveEntry), sizeof(FileEntry)).gcount() > 0 &&
+		filesystem::path(archiveEntry.file_name).filename().string() !=
+		filesystem::path(newFilePath).filename().string())
+	{
+		if (!archive.seekg(archiveEntry.data_size_compressed, ios_base::cur).good())
+			break;
+	}
+
+	streamsize fileEntryOffset = archive.seekg((-1) * sizeof(FileEntry), ios_base::cur).tellg();
+	archive.close();
+
+	size_t oldFileSize = archiveEntry.data_size_compressed;
+
+	shiftFileContent(compressedFilePath, fileEntryOffset, newFileSize - oldFileSize);
+
+	tmpCompressed.open(newFilePath + ".tmp", ios_base::binary | ios_base::in);
+	archive.open(compressedFilePath, ios_base::binary | ios_base::out | ios_base::in);
+	if (!archive.is_open())
+		throw std::bad_exception();
+
+	archive.seekp(fileEntryOffset, ios_base::beg);
+	archive.write(reinterpret_cast<char*>(&newFileEntry), sizeof(FileEntry));
+
+	//cpy tmp file
+	char buf[4096] = { 0 };
+	while (tmpCompressed.read(buf, sizeof(buf)).gcount() > 0)
+	{
+		//cout << tmpCompressed.gcount() << endl;
+		archive.write(buf, tmpCompressed.gcount());
+	}
+	archive.flush();
+	archive.close();
+
+	tmpCompressed.close();
+	if (std::filesystem::remove(compressedFilePath + ".tmp"))
+		cerr << "Failed to delete .tmp file." << endl;
+
+	newFile.close();
 }
 
 string Archiver::info(string& compressedFileLocation) const
@@ -51,13 +150,13 @@ string Archiver::info(string& compressedFileLocation) const
 		throw std::invalid_argument("File not opening.");
 
 	inf << "\n==============================\n";
-	while (inf << compressed.tellg() << endl && compressed.get(reinterpret_cast<char*>(&tempEntry), sizeof(tempEntry)).gcount() > 0)
+	while (inf << compressed.tellg() << endl && compressed.read(reinterpret_cast<char*>(&tempEntry), sizeof(tempEntry)).gcount() > 0)
 	{
 		inf << "File name: " << tempEntry.file_name << endl;
 		inf << "Compressed size: " << tempEntry.data_size_compressed << endl;
 		inf << "Raw size: " << tempEntry.data_size_raw << endl;
 
-		compressed.seekg(tempEntry.data_size_compressed + 1, ios_base::cur);
+		compressed.seekg(tempEntry.data_size_compressed, ios_base::cur);
 	}
 	inf << "==============================\n";
 

@@ -15,7 +15,6 @@ public:
 	vector<FileEntry*> archive;
 	Archiver();
 	virtual void zip(string saveLocation, vector<string>& files);
-
-	virtual void editFile(string compressedFile, string& newVersion);
+	virtual void editFile(string compressedFilePath, string newFilePath);
 	virtual string info(string& compressedFileLocation) const;
 };
