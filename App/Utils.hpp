@@ -1,6 +1,5 @@
 #pragma once
 
-#include <vector>
 #include <string>
 
 struct FileEntry
@@ -12,3 +11,5 @@ struct FileEntry
 
 		FileEntry(const std::string fileName);
 };
+
+void shiftFileContent(const std::string& file_name, std::streampos pointer, std::streampos shift);

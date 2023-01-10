@@ -6,43 +6,6 @@
 
 #include "Compressor.hpp"
 
-void shiftFileContent(const std::string& file_name, std::streampos pointer, std::streampos shift) {
-	std::ifstream input_file(file_name, std::ios::binary);
-	std::ofstream output_file(file_name + ".tmp", std::ios::binary);
-	char buffer[1024];
-	streampos red = pointer;
-
-	// Read and write the bytes before the pointer
-	while (input_file.read(buffer, sizeof(buffer)).gcount() > 0)
-	{
-		red -= input_file.gcount();
-		if (red <= 0)
-		{
-			output_file.write(buffer, 
-				pointer + red < 0 ?
-					pointer :
-					pointer + red);
-			break;
-		}
-
-		output_file.write(buffer, pointer);
-	}
-
-	// Shift the rest of the file by the given number of bytes
-	input_file.seekg(pointer + shift);
-	while (input_file.read(buffer, sizeof(buffer)).gcount() > 0)
-	{
-		output_file.write(buffer, input_file.gcount());
-	}
-
-	input_file.close();
-	output_file.close();
-
-	// Replace the original file with the modified version
-	std::filesystem::remove(file_name.c_str());
-	std::filesystem::rename((file_name + ".tmp").c_str(), file_name.c_str());
-}
-
 FileEntry::FileEntry(const string fileName) : data_size_compressed(0), data_size_raw(0)
 {
 	memset(file_name, 0, sizeof(file_name));
@@ -50,12 +13,11 @@ FileEntry::FileEntry(const string fileName) : data_size_compressed(0), data_size
 		file_name[i] = fileName.c_str()[i];
 }
 
-Archiver::Archiver()
-{
-	archive = vector<FileEntry*>();
-}
+Archiver::Archiver() : archivedFilePath(""), archive(vector<FileEntry*>()) {}
 
 void Archiver::zip(string saveLocation, vector<string>& files) {
+	archivedFilePath = saveLocation;
+
 	for (auto& f : files)
 	{
 		try {
@@ -98,6 +60,8 @@ void Archiver::editFile(string compressedFilePath, string newFilePath)
 
 	if (!archive.is_open())
 		throw std::bad_exception();
+	else
+		archivedFilePath = compressedFilePath;
 
 	//find file in archive
 	while (archive.read(reinterpret_cast<char*>(&archiveEntry), sizeof(FileEntry)).gcount() > 0 &&
@@ -180,17 +144,17 @@ void Archiver::saveToLocation(string& locationPath) const
 		{
 			fe->data_size_compressed = 0;
 			fe->data_size_raw = 0;
-			cout << "Dir: " << fe->file_name << fe->data_size_compressed << " Offset: " << compressedFile.tellp() << endl;
 			compressedFile.write(reinterpret_cast<const char*>(fe), sizeof(FileEntry));
+			cout << "Dir: " << fe->file_name << fe->data_size_compressed << " Offset: " << compressedFile.tellp() << endl;
 			continue;
 		}
 
 		in.open(fe->file_name, ios_base::binary | ios_base::in);
 		if (in.is_open())
 		{
-			cout << "Name: " << fe->file_name << " Raw: " << fe->data_size_raw << " Compr: " << fe->data_size_compressed << " Offset: " << compressedFile.tellp() << endl;
 			compressedFile.write(reinterpret_cast<const char*>(fe), sizeof(FileEntry));
 			Compressor::compress(in, compressedFile, fe);
+			cout << "Name: " << fe->file_name << " Raw: " << fe->data_size_raw << " Compr: " << fe->data_size_compressed << " Offset: " << compressedFile.tellp() << endl;
 
 			const streamsize pos = compressedFile.tellp();
 			if (pos > 0) {
@@ -209,7 +173,8 @@ void Archiver::saveToLocation(string& locationPath) const
 
 void Archiver::addFile(string& filePath)
 {
-	archive.emplace_back(new FileEntry(filePath));
+	if (filePath != archivedFilePath)
+		archive.emplace_back(new FileEntry(filePath));
 }
 
 void Archiver::addDir(string& dirPath)
