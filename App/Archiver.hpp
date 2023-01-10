@@ -7,6 +7,8 @@ using namespace std;
 
 class Archiver {
 private:
+	string archivedFilePath;
+
 	void saveToLocation(string& locationPath) const;
 	void addFile(string& filePath);
 	void addDir(string& dirPath);
