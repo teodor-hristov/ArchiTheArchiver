@@ -30,11 +30,12 @@ void Compressor::compress(istream& in, ostream& out, FileEntry* fe)
 	in.read(&unit, sizeof(unit));
 	currentString = unit;
 
-	while (in.read(&unit, sizeof(unit)).gcount() > 0)
+	string newElement;
+	while (in.read(&unit, sizeof(unit)).gcount() > 0 && unit != '\0')
 	{
 		nextString = unit;
-
-		if (table[currentString + nextString] > 0)
+		newElement = currentString + nextString;
+		if (table.contains(newElement))
 		{
 			currentString += nextString;
 		}
@@ -47,7 +48,7 @@ void Compressor::compress(istream& in, ostream& out, FileEntry* fe)
 
 			if (maxDictSize > dictSize)
 			{
-				table[currentString + nextString] = dictSize;
+				table[newElement] = dictSize;
 				dictSize++;
 			}
 
