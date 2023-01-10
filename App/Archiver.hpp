@@ -2,6 +2,7 @@
 
 #include "Utils.hpp"
 #include <fstream>
+#include <vector>
 
 using namespace std;
 
@@ -16,6 +17,7 @@ private:
 public:
 	vector<FileEntry*> archive;
 	Archiver();
+	virtual ~Archiver();
 	virtual void zip(string saveLocation, vector<string>& files);
 	virtual void editFile(string compressedFilePath, string newFilePath);
 	virtual string info(string& compressedFileLocation) const;

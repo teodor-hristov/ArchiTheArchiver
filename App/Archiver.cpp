@@ -15,6 +15,12 @@ FileEntry::FileEntry(const string fileName) : data_size_compressed(0), data_size
 
 Archiver::Archiver() : archivedFilePath(""), archive(vector<FileEntry*>()) {}
 
+Archiver::~Archiver()
+{
+	for(const auto& e : archive)
+		delete e;
+}
+
 void Archiver::zip(string saveLocation, vector<string>& files) {
 	archivedFilePath = saveLocation;
 
