@@ -6,18 +6,18 @@
 
 #include "Compressor.hpp"
 
-FileEntry::FileEntry(const string fileName) : data_size_compressed(0), data_size_raw(0)
+FileEntry::FileEntry(string fileName) : data_size_compressed(0), data_size_raw(0)
 {
 	memset(file_name, 0, sizeof(file_name));
 	for (int i = 0; i < fileName.length(); i++)
 		file_name[i] = fileName.c_str()[i];
 }
 
-Archiver::Archiver() : archivedFilePath(""), archive(vector<FileEntry*>()) {}
+Archiver::Archiver() : archive(vector<FileEntry*>()) {}
 
 Archiver::~Archiver()
 {
-	for(const auto& e : archive)
+	for (const auto& e : archive)
 		delete e;
 }
 
@@ -134,7 +134,45 @@ string Archiver::info(string& compressedFileLocation) const
 	return inf.str();
 }
 
-void Archiver::saveToLocation(string& locationPath) const
+void Archiver::unzip(const string& archiveLocation, const string& unzipLocation)
+{
+	ifstream archive(archiveLocation, ios_base::binary);
+	if (!archive.is_open())
+		throw std::exception("Can't open archive.");
+
+	//Create unzip folder if needed
+	if (!std::filesystem::exists(unzipLocation))
+	{
+		std::filesystem::create_directory(unzipLocation);
+	}
+
+	FileEntry fileData;
+	while (archive.read(reinterpret_cast<char*>(&fileData), sizeof(fileData)).gcount() > 0)
+	{
+		//cout << fileData.file_name << endl;
+		if (fileData.data_size_raw == 0)
+		{
+			std::filesystem::create_directory(unzipLocation +
+				string(fileData.file_name, sizeof(fileData.file_name)));
+
+			continue;
+		}
+
+		ofstream outToFile(unzipLocation +
+			string(fileData.file_name, sizeof(fileData.file_name)),
+			ios_base::binary | ios_base::app);
+
+		if (!outToFile.is_open())
+			throw std::exception("File open failed.");
+
+		Compressor::decompress(archive, outToFile, &fileData);
+
+		outToFile.flush();
+		outToFile.close();
+	}
+}
+
+void Archiver::saveToLocation(const string& locationPath) const
 {
 	if (std::filesystem::is_directory(locationPath))
 		throw std::exception("Invalid file.");
@@ -177,13 +215,13 @@ void Archiver::saveToLocation(string& locationPath) const
 	compressedFile.close();
 }
 
-void Archiver::addFile(string& filePath)
+void Archiver::addFile(const string& filePath)
 {
 	if (filePath != archivedFilePath)
 		archive.emplace_back(new FileEntry(filePath));
 }
 
-void Archiver::addDir(string& dirPath)
+void Archiver::addDir(const string& dirPath)
 {
 	if (!filesystem::is_directory(dirPath))
 		return;
