@@ -9,7 +9,8 @@ struct FileEntry
 		char file_name[256];
 		//uint32_t file_hash;
 
-		FileEntry(const std::string fileName);
+		FileEntry();
+		FileEntry(std::string fileName);
 };
 
 void shiftFileContent(const std::string& file_name, std::streampos pointer, std::streampos shift);

@@ -7,6 +7,8 @@
 
 using std::streampos;
 
+FileEntry::FileEntry() : FileEntry(""){}
+
 void shiftFileContent(const std::string& file_name, std::streampos pointer, std::streampos shift) {
 	std::ifstream input_file(file_name, std::ios::binary);
 	std::ofstream output_file(file_name + ".tmp", std::ios::binary | std::ios_base::trunc);
